@@ -1,22 +1,15 @@
 #!/usr/bin/python
-#python
+
 import sys
 import getopt
 import re
 
 
 def main(argv):
-    inputfile = ''
     inputfile, outputfile = getargs(argv)   # handles parsing parameters
-
-    #try:
-        #input = open(inputfile, 'r+')
-    #except (FileNotFoundError):
-        #print("Could not find input file.")
 
     try:
         processfile(inputfile, outputfile)
-        #input.close()
     except UnboundLocalError:
         print('No file specified.')
 
@@ -30,7 +23,8 @@ def processfile(file, outfile):
             matches = processline(line, file, matches)
 
     for string in matches:
-        out.write(string)
+        if string is not None:
+            out.write(string)
 
     out.close()
     infile.close()
@@ -45,23 +39,40 @@ def processline(line, file, matches):    # processes line and returns lines to i
 
 
 def search(currentline, file, fields, matches):
-    strings =[fields[1], fields[2]]                     # list of strings to match
+    strings = [fields[1]]                     # list of strings to match
+
+    if test(fields):
+        if getnext(currentline, file) not in matches:   # if detail has not been added
+            matches.append(currentline)                 # add header
+            matches.append(getnext(currentline, file))  # add detail
+
+        with open(file) as infile:                      # find any details matching therapist
+            for line in infile.readlines():
+                newline = re.split(r'\t+', line)
+                if test(newline[0]):
+                    hasMatch = any(string in newline for string in strings)
+                    if hasMatch and (getnext(line, file) not in matches):
+                        print(line)
+                        matches.append(getnext(line, file))  #append other details
+
+
+def getnext(searchline, file):
+    found = False
     with open(file) as infile:
         for line in infile.readlines():
-            hasMatch = any(string in line for string in strings)
-            if hasMatch and (line not in matches):
-                print(line)
-                matches.append(line)
-            elif line != currentline:
-                if test(fields):
-                    matches.append(line)
+            if searchline == line:
+                found = True
+            else:
+                if found:
+                    return line     # return detail
+                    break
 
 
 def test(fields):
-    #if(fields[0] != H):  #checks that the line is a detail
-    return True
-    #else:
-    #    return False
+    if fields[0] == 'H':  # checks line type
+        return True
+    else:
+        return False
 
 
 def getargs(argv):
